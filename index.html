@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checklist de Automação com N8N — Identifique Seus Pontos Cegos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0f13;
+    --surface: #16181f;
+    --surface2: #1e2129;
+    --border: #2a2d38;
+    --gold: #f0a500;
+    --gold-light: #ffc94d;
+    --gold-dim: rgba(240,165,0,0.12);
+    --text: #e8e9ef;
+    --text-muted: #7a7f96;
+    --text-dim: #4a4e62;
+    --green: #3ecf8e;
+    --green-dim: rgba(62,207,142,0.1);
+    --red: #f56565;
+    --blue: #5b8dee;
+    --blue-dim: rgba(91,141,238,0.1);
+    --radius: 14px;
+    --radius-sm: 8px;
+    --shadow: 0 4px 32px rgba(0,0,0,0.4);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── BACKGROUND TEXTURE ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      radial-gradient(ellipse 80% 60% at 50% -10%, rgba(240,165,0,0.06) 0%, transparent 70%),
+      url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 40L40 0M-10 10L10-10M30 50L50 30' stroke='%23ffffff' stroke-width='0.5' opacity='0.025'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── STICKY PROGRESS BAR ── */
+  .progress-bar-wrap {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(14,15,19,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .progress-label { font-size: 12px; font-weight: 600; color: var(--text-muted); white-space: nowrap; letter-spacing: 0.05em; text-transform: uppercase; }
+  .progress-track { flex: 1; height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--gold), var(--gold-light)); border-radius: 99px; transition: width 0.5s cubic-bezier(.4,0,.2,1); width: 0%; }
+  .progress-pct { font-size: 13px; font-weight: 600; color: var(--gold); min-width: 36px; text-align: right; }
+
+  /* ── HERO ── */
+  .hero {
+    position: relative; z-index: 1;
+    max-width: 860px; margin: 0 auto;
+    padding: 64px 24px 40px;
+    text-align: center;
+  }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--gold-dim); border: 1px solid rgba(240,165,0,0.3);
+    color: var(--gold); font-size: 12px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 6px 14px; border-radius: 99px; margin-bottom: 24px;
+  }
+  .badge-dot { width: 6px; height: 6px; background: var(--gold); border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
+
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(28px, 5vw, 48px);
+    line-height: 1.15;
+    color: #fff;
+    margin-bottom: 16px;
+  }
+  h1 em { font-style: italic; color: var(--gold); }
+  .hero-sub {
+    font-size: 17px; color: var(--text-muted); max-width: 580px;
+    margin: 0 auto 40px; line-height: 1.7;
+  }
+
+  /* stats row */
+  .stats {
+    display: flex; justify-content: center; gap: 32px; flex-wrap: wrap;
+    padding: 24px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 8px;
+  }
+  .stat { text-align: center; }
+  .stat-num { font-family: 'DM Serif Display', serif; font-size: 30px; color: var(--gold); }
+  .stat-lbl { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+  /* ── MAIN LAYOUT ── */
+  main { max-width: 860px; margin: 0 auto; padding: 0 24px 80px; position: relative; z-index: 1; }
+
+  /* ── SECTION ── */
+  .section {
+    margin-bottom: 32px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+  .section.all-done { border-color: rgba(62,207,142,0.4); }
+
+  .section-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 22px 26px;
+    cursor: pointer;
+    user-select: none;
+    background: var(--surface);
+    transition: background 0.2s;
+  }
+  .section-header:hover { background: var(--surface2); }
+
+  .section-icon {
+    width: 42px; height: 42px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+    background: var(--gold-dim); border: 1px solid rgba(240,165,0,0.2);
+  }
+  .section-icon.blue { background: var(--blue-dim); border-color: rgba(91,141,238,0.2); }
+  .section-icon.green { background: var(--green-dim); border-color: rgba(62,207,142,0.2); }
+
+  .section-title-wrap { flex: 1; }
+  .section-phase { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
+  .section-title { font-family: 'DM Serif Display', serif; font-size: 19px; color: #fff; line-height: 1.25; }
+
+  .section-meta { display: flex; align-items: center; gap: 10px; }
+  .mini-progress { width: 60px; height: 4px; background: var(--border); border-radius: 99px; overflow: hidden; }
+  .mini-fill { height: 100%; background: var(--gold); border-radius: 99px; transition: width 0.4s; }
+  .mini-pct { font-size: 12px; color: var(--text-muted); min-width: 28px; text-align: right; }
+  .chevron { color: var(--text-dim); transition: transform 0.3s; font-size: 18px; }
+  .section.open .chevron { transform: rotate(90deg); }
+  .done-badge { background: var(--green-dim); color: var(--green); font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 99px; border: 1px solid rgba(62,207,142,0.3); display: none; }
+  .section.all-done .done-badge { display: inline-flex; }
+  .section.all-done .mini-progress { display: none; }
+  .section.all-done .mini-pct { display: none; }
+
+  .section-body { display: none; border-top: 1px solid var(--border); }
+  .section.open .section-body { display: block; }
+
+  /* ── TABLE (Phase 1) ── */
+  .dept-table { width: 100%; border-collapse: collapse; }
+  .dept-table th {
+    font-size: 11px; font-weight: 600; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.07em;
+    padding: 14px 20px; text-align: left;
+    border-bottom: 1px solid var(--border); background: var(--bg);
+  }
+  .dept-table td { padding: 0; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .dept-table tr:last-child td { border-bottom: none; }
+  .dept-row { display: flex; align-items: center; gap: 12px; padding: 14px 20px; }
+  .dept-name { font-weight: 600; font-size: 14px; min-width: 110px; }
+  .dept-input {
+    flex: 1; background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 8px 12px;
+    color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px;
+    resize: none; transition: border-color 0.2s;
+    min-height: 36px;
+  }
+  .dept-input:focus { outline: none; border-color: var(--gold); }
+  .priority-select {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 8px 10px;
+    color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px;
+    cursor: pointer; min-width: 100px;
+  }
+  .priority-select:focus { outline: none; border-color: var(--gold); }
+  .priority-select option { background: var(--surface); }
+
+  /* ── CHECKLIST ITEMS ── */
+  .check-list { padding: 12px 20px; display: flex; flex-direction: column; gap: 4px; }
+  .check-item {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 14px 16px; border-radius: var(--radius-sm);
+    cursor: pointer; transition: background 0.15s;
+    border: 1px solid transparent;
+  }
+  .check-item:hover { background: var(--surface2); }
+  .check-item.checked {
+    background: var(--green-dim);
+    border-color: rgba(62,207,142,0.15);
+  }
+
+  /* custom checkbox */
+  .cbox {
+    width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0;
+    border: 2px solid var(--border); background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s; margin-top: 1px;
+  }
+  .check-item.checked .cbox {
+    background: var(--green); border-color: var(--green);
+  }
+  .cbox-tick { color: #fff; font-size: 13px; opacity: 0; transform: scale(0.5); transition: all 0.2s; }
+  .check-item.checked .cbox-tick { opacity: 1; transform: scale(1); }
+
+  .check-content { flex: 1; }
+  .check-title { font-weight: 500; font-size: 14px; line-height: 1.4; }
+  .check-item.checked .check-title { text-decoration: line-through; color: var(--text-muted); }
+  .check-desc { font-size: 13px; color: var(--text-muted); margin-top: 3px; line-height: 1.5; }
+  .check-item.checked .check-desc { color: var(--text-dim); }
+
+  /* ── STATUS TABLE (Phase 2 & 4) ── */
+  .status-list { padding: 12px 20px; display: flex; flex-direction: column; gap: 4px; }
+  .status-item {
+    display: grid; grid-template-columns: 1fr auto auto;
+    align-items: center; gap: 12px;
+    padding: 14px 16px; border-radius: var(--radius-sm);
+    background: transparent; border: 1px solid transparent;
+    transition: background 0.15s;
+  }
+  .status-item:hover { background: var(--surface2); }
+  .status-label { font-size: 14px; font-weight: 500; }
+  .status-note { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .status-toggle {
+    display: flex; border: 1px solid var(--border); border-radius: 99px; overflow: hidden;
+    flex-shrink: 0;
+  }
+  .st-btn {
+    padding: 5px 12px; font-size: 11px; font-weight: 600; cursor: pointer;
+    border: none; background: transparent; color: var(--text-muted);
+    font-family: 'DM Sans', sans-serif; transition: all 0.15s; white-space: nowrap;
+  }
+  .st-btn.active-done { background: var(--green); color: #fff; }
+  .st-btn.active-pend { background: var(--gold); color: #000; }
+
+  .status-obs {
+    grid-column: 1 / -1;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 8px 12px;
+    color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px;
+    resize: none; display: none; transition: border-color 0.2s;
+  }
+  .status-obs.show { display: block; }
+  .status-obs:focus { outline: none; border-color: var(--gold); }
+
+  /* ── EXAMPLES / CARDS (Phase 5) ── */
+  .cards-wrap { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+  .card-cat-label { font-size: 12px; font-weight: 600; color: var(--gold); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px; }
+  .card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); overflow: hidden;
+  }
+  .card-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .card-tag { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 99px; }
+  .tag-atendimento { background: rgba(91,141,238,0.15); color: var(--blue); border: 1px solid rgba(91,141,238,0.25); }
+  .tag-vendas { background: rgba(240,165,0,0.15); color: var(--gold); border: 1px solid rgba(240,165,0,0.25); }
+  .tag-financeiro { background: rgba(62,207,142,0.15); color: var(--green); border: 1px solid rgba(62,207,142,0.25); }
+  .card-title { font-weight: 600; font-size: 14px; }
+  .card-body { padding: 14px 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 600px) { .card-body { grid-template-columns: 1fr; } }
+  .card-col-label { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .card-col-val { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+  .card-actions { padding: 0 18px 14px; }
+  .action-steps { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .action-steps li { display: flex; gap: 8px; font-size: 13px; color: var(--text-muted); }
+  .step-num { width: 20px; height: 20px; background: var(--gold-dim); border: 1px solid rgba(240,165,0,0.25); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: var(--gold); flex-shrink: 0; margin-top: 1px; }
+
+  /* ── CELEBRATION ── */
+  #celebration {
+    display: none; position: fixed; inset: 0; z-index: 999;
+    background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+    align-items: center; justify-content: center; text-align: center;
+    padding: 24px;
+  }
+  #celebration.show { display: flex; }
+  .celebrate-box {
+    background: var(--surface); border: 1px solid var(--gold);
+    border-radius: 20px; padding: 48px 40px; max-width: 480px; width: 100%;
+    box-shadow: 0 0 60px rgba(240,165,0,0.2);
+    animation: popIn 0.4s cubic-bezier(.17,.67,.35,1.3);
+  }
+  @keyframes popIn { from{transform:scale(0.8);opacity:0} to{transform:scale(1);opacity:1} }
+  .celebrate-emoji { font-size: 56px; margin-bottom: 16px; }
+  .celebrate-title { font-family: 'DM Serif Display', serif; font-size: 28px; color: var(--gold); margin-bottom: 12px; }
+  .celebrate-text { color: var(--text-muted); line-height: 1.6; margin-bottom: 28px; }
+  .btn-close {
+    background: var(--gold); color: #000; font-weight: 700;
+    border: none; padding: 14px 32px; border-radius: 99px;
+    cursor: pointer; font-size: 15px; font-family: 'DM Sans', sans-serif;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .btn-close:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(240,165,0,0.3); }
+
+  /* ── PRINT BTN ── */
+  .actions-bar {
+    text-align: center; padding: 20px;
+    display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+  }
+  .btn-action {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 24px; border-radius: 99px; font-size: 14px; font-weight: 600;
+    cursor: pointer; border: none; font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+  }
+  .btn-print { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-print:hover { border-color: var(--gold); color: var(--gold); }
+  .btn-reset { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+  .btn-reset:hover { color: var(--red); border-color: var(--red); }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center; padding: 32px 24px;
+    font-size: 12px; color: var(--text-dim);
+    border-top: 1px solid var(--border);
+    max-width: 860px; margin: 0 auto;
+    position: relative; z-index: 1;
+  }
+
+  /* ── SCROLL ANIMATION ── */
+  .section { animation: fadeUp 0.4s ease both; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  .section:nth-child(1){animation-delay:.05s}
+  .section:nth-child(2){animation-delay:.10s}
+  .section:nth-child(3){animation-delay:.15s}
+  .section:nth-child(4){animation-delay:.20s}
+  .section:nth-child(5){animation-delay:.25s}
+
+  @media print {
+    .progress-bar-wrap,.actions-bar,.btn-close,#celebration{display:none!important}
+    body{background:#fff;color:#000}
+    .section{border:1px solid #ccc;break-inside:avoid}
+    .section-body{display:block!important}
+  }
+
+  @media (max-width:600px) {
+    .stats{gap:20px}
+    .stat-num{font-size:24px}
+    .dept-row{flex-wrap:wrap}
+    .dept-name{min-width:unset;width:100%}
+    .status-item{grid-template-columns:1fr;gap:8px}
+  }
+</style>
+</head>
+<body>
+
+<!-- PROGRESS BAR -->
+<div class="progress-bar-wrap">
+  <span class="progress-label">Seu progresso</span>
+  <div class="progress-track"><div class="progress-fill" id="globalFill"></div></div>
+  <span class="progress-pct" id="globalPct">0%</span>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="badge"><span class="badge-dot"></span> Ferramenta Exclusiva do Curso</div>
+  <h1>Identifique os <em>Pontos Cegos</em><br>da sua Empresa para Automatizar</h1>
+  <p class="hero-sub">Um guia passo a passo para mapear o que está roubando o seu tempo — e transformar tudo isso em processos automáticos com o N8N.</p>
+  <div class="stats">
+    <div class="stat"><div class="stat-num">5</div><div class="stat-lbl">Fases</div></div>
+    <div class="stat"><div class="stat-num">30+</div><div class="stat-lbl">Itens de Checklist</div></div>
+    <div class="stat"><div class="stat-num">∞</div><div class="stat-lbl">Automações Possíveis</div></div>
+    <div class="stat"><div class="stat-num">Salvo</div><div class="stat-lbl">Automaticamente</div></div>
+  </div>
+</div>
+
+<main>
+
+  <!-- ═══════════════════════════════════════
+       FASE 1 — MAPEAMENTO
+  ════════════════════════════════════════ -->
+  <div class="section open" id="sec1">
+    <div class="section-header" onclick="toggleSection('sec1')">
+      <div class="section-icon">🗺️</div>
+      <div class="section-title-wrap">
+        <div class="section-phase">Fase 1</div>
+        <div class="section-title">Mapeamento e Identificação de Processos</div>
+      </div>
+      <div class="section-meta">
+        <div class="done-badge">✓ Concluído</div>
+        <div class="mini-progress"><div class="mini-fill" id="fill1"></div></div>
+        <div class="mini-pct" id="pct1">0%</div>
+        <span class="chevron">›</span>
+      </div>
+    </div>
+    <div class="section-body">
+
+      <div style="padding:20px 20px 8px; font-size:13px; color:var(--text-muted);">
+        👇 Preencha abaixo os <strong style="color:var(--text)">processos manuais</strong> que você ou sua equipe fazem hoje em cada área. Seja específico — quanto mais detalhe, mais fácil será automatizar.
+      </div>
+
+      <!-- Department Table -->
+      <table class="dept-table">
+        <thead>
+          <tr>
+            <th style="width:35%">Departamento / Área</th>
+            <th>Processos Manuais (O que você faz no braço hoje?)</th>
+            <th style="width:130px">Prioridade</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><div class="dept-row"><span style="font-size:18px">💼</span><span class="dept-name">Vendas</span></div></td>
+            <td><div class="dept-row" style="padding:10px 14px"><textarea class="dept-input" placeholder="Ex: Registro manual de clientes no CRM, envio manual de propostas..." rows="2" id="dept0" oninput="saveInputs()"></textarea></div></td>
+            <td><div class="dept-row" style="padding:10px 14px"><select class="priority-select" id="prio0" onchange="saveInputs()"><option value="">Prioridade</option><option value="alta">🔴 Alta</option><option value="media">🟡 Média</option><option value="baixa">🟢 Baixa</option></select></div></td>
+          </tr>
+          <tr><td><div class="dept-row"><span style="font-size:18px">📣</span><span class="dept-name">Marketing</span></div></td>
+            <td><div class="dept-row" style="padding:10px 14px"><textarea class="dept-input" placeholder="Ex: Postar manualmente nas redes sociais, enviar e-mails de divulgação..." rows="2" id="dept1" oninput="saveInputs()"></textarea></div></td>
+            <td><div class="dept-row" style="padding:10px 14px"><select class="priority-select" id="prio1" onchange="saveInputs()"><option value="">Prioridade</option><option value="alta">🔴 Alta</option><option value="media">🟡 Média</option><option value="baixa">🟢 Baixa</option></select></div></td>
+          </tr>
+          <tr><td><div class="dept-row"><span style="font-size:18px">🎧</span><span class="dept-name">Atendimento</span></div></td>
+            <td><div class="dept-row" style="padding:10px 14px"><textarea class="dept-input" placeholder="Ex: Responder as mesmas perguntas no WhatsApp, responder e-mails repetitivos..." rows="2" id="dept2" oninput="saveInputs()"></textarea></div></td>
+            <td><div class="dept-row" style="padding:10px 14px"><select class="priority-select" id="prio2" onchange="saveInputs()"><option value="">Prioridade</option><option value="alta">🔴 Alta</option><option value="media">🟡 Média</option><option value="baixa">🟢 Baixa</option></select></div></td>
+          </tr>
+          <tr><td><div class="dept-row"><span style="font-size:18px">💰</span><span class="dept-name">Financeiro</span></div></td>
+            <td><div class="dept-row" style="padding:10px 14px"><textarea class="dept-input" placeholder="Ex: Lançar notas fiscais manualmente, controlar pagamentos em planilha..." rows="2" id="dept3" oninput="saveInputs()"></textarea></div></td>
+            <td><div class="dept-row" style="padding:10px 14px"><select class="priority-select" id="prio3" onchange="saveInputs()"><option value="">Prioridade</option><option value="alta">🔴 Alta</option><option value="media">🟡 Média</option><option value="baixa">🟢 Baixa</option></select></div></td>
+          </tr>
+          <tr><td><div class="dept-row"><span style="font-size:18px">📦</span><span class="dept-name">Estoque/Logística</span></div></td>
+            <td><div class="dept-row" style="padding:10px 14px"><textarea class="dept-input" placeholder="Ex: Atualizar estoque manualmente, rastrear entregas em planilha..." rows="2" id="dept4" oninput="saveInputs()"></textarea></div></td>
+            <td><div class="dept-row" style="padding:10px 14px"><select class="priority-select" id="prio4" onchange="saveInputs()"><option value="">Prioridade</option><option value="alta">🔴 Alta</option><option value="media">🟡 Média</option><option value="baixa">🟢 Baixa</option></select></div></td>
+          </tr>
+          <tr><td><div class="dept-row"><span style="font-size:18px">➕</span><span class="dept-name">Outro</span></div></td>
+            <td><div class="dept-row" style="padding:10px 14px"><textarea class="dept-input" placeholder="Algum outro processo que toma tempo da sua equipe..." rows="2" id="dept5" oninput="saveInputs()"></textarea></div></td>
+            <td><div class="dept-row" style="padding:10px 14px"><select class="priority-select" id="prio5" onchange="saveInputs()"><option value="">Prioridade</option><option value="alta">🔴 Alta</option><option value="media">🟡 Média</option><option value="baixa">🟢 Baixa</option></select></div></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Characteristics checklist -->
+      <div style="padding:16px 20px 8px; font-size:13px; color:var(--text-muted); border-top:1px solid var(--border); margin-top:8px;">
+        ✅ <strong style="color:var(--text)">Características do Processo — Vale a Pena Automatizar?</strong><br>
+        <span style="font-size:12px">Marque tudo que se aplica ao processo que você quer automatizar. Quanto mais itens marcados, maior a prioridade!</span>
+      </div>
+      <div class="check-list" id="checks1">
+        <div class="check-item" onclick="toggleCheck(this,'c1_1')">
+          <div class="cbox"><span class="cbox-tick">✓</span></div>
+          <div class="check-content">
+            <div class="check-title">O processo é altamente repetitivo?</div>
+            <div class="check-desc">Você ou alguém da equipe faz a mesma coisa várias vezes por dia ou semana?</div>
+          </div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this,'c1_2')">
+          <div class="cbox"><span class="cbox-tick">✓</span></div>
+          <div class="check-content">
+            <div class="check-title">Consome tempo significativo da equipe?</div>
+            <div class="check-desc">Estima-se mais de 30 minutos por dia com essa tarefa?</div>
+          </div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this,'c1_3')">
+          <div class="cbox"><span class="cbox-tick">✓</span></div>
+          <div class="check-content">
+            <div class="check-title">Propenso a erros humanos?</div>
+            <div class="check-desc">Já aconteceu de alguém esquecer, duplicar ou registrar errado?</div>
+          </div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this,'c1_4')">
+          <div class="cbox"><span class="cbox-tick">✓</span></div>
+          <div class="check-content">
+            <div class="check-title">Envolve copiar dados entre sistemas?</div>
+            <div class="check-desc">Ex: copiar do e-mail para a planilha, do formulário para o WhatsApp, etc.</div>
+          </div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this,'c1_5')">
+          <div class="cbox"><span class="cbox-tick">✓</span></div>
+          <div class="check-content">
+            <div class="check-title">Tem um gatilho claro?</div>
+            <div class="check-desc">Ex: "Quando chega um pedido", "Quando um cliente preenche o formulário", "Todo dia às 9h".</div>
+          </div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this,'c1_6')">
+          <div class="cbox"><span class="cbox-tick">✓</span></div>
+          <div class="check-content">
+            <div class="check-title">A automação trará retorno claro?</div>
+            <div class="check-desc">Economizará tempo, reduzirá erros ou melhorará a experiência do cliente?</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:12px 20px 20px; font-size:13px; color:var(--text-muted); display:flex; align-items:center; gap:8px;">
+        💡 <span>3 ou mais itens marcados? Esse processo é um <strong style="color:var(--gold)">candidato perfeito para automação!</strong> Leve-o para o N8N.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       FASE 2 — PLANEJAMENTO
+  ════════════════════════════════════════ -->
+  <div class="section" id="sec2">
+    <div class="section-header" onclick="toggleSection('sec2')">
+      <div class="section-icon blue">📐</div>
+      <div class="section-title-wrap">
+        <div class="section-phase">Fase 2</div>
+        <div class="section-title">Planejamento e Estrutura da Automação</div>
+      </div>
+      <div class="section-meta">
+        <div class="done-badge">✓ Concluído</div>
+        <div class="mini-progress"><div class="mini-fill" id="fill2"></div></div>
+        <div class="mini-pct" id="pct2">0%</div>
+        <span class="chevron">›</span>
+      </div>
+    </div>
+    <div class="section-body">
+      <div style="padding:16px 20px 8px; font-size:13px; color:var(--text-muted);">
+        Antes de colocar a mão na massa no N8N, organize o que precisa ser feito. Marque cada etapa como <strong style="color:var(--green)">Concluído</strong> ou <strong style="color:var(--gold)">Pendente</strong>.
+      </div>
+      <div class="status-list">
+        <div class="status-item">
+          <div><div class="status-label">✅ N8N instalado ou conta criada</div><div class="status-note">Definir se será na nuvem (n8n.cloud) ou instalado no seu computador/servidor.</div></div>
+          <div class="status-toggle"><button class="st-btn" onclick="toggleStatus(this,'s2_1','done')">✓ Feito</button><button class="st-btn" onclick="toggleStatus(this,'s2_1','pend')">⏳ Pendente</button></div>
+        </div>
+        <div class="status-item">
+          <div><div class="status-label">🎯 Gatilho (Trigger) definido</div><div class="status-note">O que vai iniciar a automação? Ex: novo e-mail, novo formulário, horário agendado.</div></div>
+          <div class="status-toggle"><button class="st-btn" onclick="toggleStatus(this,'s2_2','done')">✓ Feito</button><button class="st-btn" onclick="toggleStatus(this,'s2_2','pend')">⏳ Pendente</button></div>
+        </div>
+        <div class="status-item">
+          <div><div class="status-label">🔗 Sistemas e apps identificados</div><div class="status-note">Ex: Google Sheets, WhatsApp, CRM, Loja Virtual, E-mail, Planilha.</div></div>
+          <div class="status-toggle"><button class="st-btn" onclick="toggleStatus(this,'s2_3','done')">✓ Feito</button><button class="st-btn" onclick="toggleStatus(this,'s2_3','pend')">⏳ Pendente</button></div>
+        </div>
+        <div class="status-item">
+          <div><div class="status-label">🔑 Chaves de API / Senhas geradas</div><div class="status-note">Cada serviço conectado ao N8N precisa de uma chave de acesso (normalmente gerada em "Configurações" do app).</div></div>
+          <div class="status-toggle"><button class="st-btn" onclick="toggleStatus(this,'s2_4','done')">✓ Feito</button><button class="st-btn" onclick="toggleStatus(this,'s2_4','pend')">⏳ Pendente</button></div>
+        </div>
+        <div class="status-item">
+          <div><div class="status-label">🗺️ Fluxo lógico mapeado no papel</div><div class="status-note">Anote os passos: "Quando X acontece → faça Y → depois faça Z". Pode ser num papel mesmo!</div></div>
+          <div class="status-toggle"><button class="st-btn" onclick="toggleStatus(this,'s2_5','done')">✓ Feito</button><button class="st-btn" onclick="toggleStatus(this,'s2_5','pend')">⏳ Pendente</button></div>
+        </div>
+        <div class="status-item">
+          <div><div class="status-label">📊 Dados a ser manipulados definidos</div><div class="status-note">Quais informações vão circular? Ex: Nome do cliente, valor do pedido, texto da mensagem.</div></div>
+          <div class="status-toggle"><button class="st-btn" onclick="toggleStatus(this,'s2_6','done')">✓ Feito</button><button class="st-btn" onclick="toggleStatus(this,'s2_6','pend')">⏳ Pendente</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       FASE 3 — DESENVOLVIMENTO
+  ════════════════════════════════════════ -->
+  <div class="section" id="sec3">
+    <div class="section-header" onclick="toggleSection('sec3')">
+      <div class="section-icon">⚙️</div>
+      <div class="section-title-wrap">
+        <div class="section-phase">Fase 3</div>
+        <div class="section-title">Construção do Workflow no N8N</div>
+      </div>
+      <div class="section-meta">
+        <div class="done-badge">✓ Concluído</div>
+        <div class="mini-progress"><div class="mini-fill" id="fill3"></div></div>
+        <div class="mini-pct" id="pct3">0%</div>
+        <span class="chevron">›</span>
+      </div>
+    </div>
+    <div class="section-body">
+      <div style="padding:16px 20px 8px; font-size:13px; color:var(--text-muted);">
+        Hora de construir! Marque cada nó (bloco de automação) conforme for configurando no N8N.
+      </div>
+      <div class="check-list" id="checks3">
+        <div class="check-item" onclick="toggleCheck(this,'c3_1')">
+          <div class="cbox"><span class="cbox-tick">✓</span></div>
+          <div class="check-content">
+            <div class="check-title">🚀 Nó de Gatilho configurado</div>
+            <div class="check-desc">O workflow começa corretamente quando o evento esperado acontece? Teste clicando em "Execute".</div>
+          </div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this,'c3_2')">
+          <div class="cbox"><span class="cbox-tick">✓</span></div>
+          <div class="check-content">
+            <div class="check-title">🔗 Credenciais dos serviços conectadas</div>
+            <div class="check-desc">As senhas/chaves do Google Sheets, E-mail, CRM, etc. foram inseridas no N8N sem erro?</div>
+          </div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this,'c3_3')">
+          <div class="cbox"><span class="cbox-tick">✓</span></div>
+          <div class="check-content">
+            <div class="check-title">📥 Nós de busca de dados funcionando</div>
+            <div class="check-desc">Os dados estão sendo lidos corretamente dos sistemas de origem? Ex: Buscando linha da planilha, e-mail do cliente.</div>
+          </div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this,'c3_4')">
+          <div class="cbox"><span class="cbox-tick">✓</span></div>
+          <div class="check-content">
+            <div class="check-title">🔄 Nós de transformação configurados (se necessário)</div>
+            <div class="check-desc">Precisa formatar a data, juntar nome e sobrenome, ou converter um valor? O nó "Set" ou "Function" está correto?</div>
+          </div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this,'c3_5')">
+          <div class="cbox"><span class="cbox-tick">✓</span></div>
+          <div class="check-content">
+            <div class="check-title">🔀 Nós de condição (SE/SENÃO) configurados</div>
+            <div class="check-desc">Ex: "Se o pedido for acima de R$200, envie e-mail VIP. Senão, envie e-mail padrão." Funciona corretamente?</div>
+          </div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this,'c3_6')">
+          <div class="cbox"><span class="cbox-tick">✓</span></div>
+          <div class="check-content">
+            <div class="check-title">📤 Nós de ação finais funcionando</div>
+            <div class="check-desc">O resultado final acontece? Ex: E-mail enviado, registro criado no CRM, mensagem no WhatsApp disparada?</div>
+          </div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this,'c3_7')">
+          <div class="cbox"><span class="cbox-tick">✓</span></div>
+          <div class="check-content">
+            <div class="check-title">🚨 Alerta de erros configurado</div>
+            <div class="check-desc">Se algo der errado, você será avisado? Configure um nó para te enviar um e-mail ou mensagem caso o workflow falhe.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       FASE 4 — TESTES E MONITORAMENTO
+  ════════════════════════════════════════ -->
+  <div class="section" id="sec4">
+    <div class="section-header" onclick="toggleSection('sec4')">
+      <div class="section-icon green">🧪</div>
+      <div class="section-title-wrap">
+        <div class="section-phase">Fase 4</div>
+        <div class="section-title">Testes, Ativação e Monitoramento</div>
+      </div>
+      <div class="section-meta">
+        <div class="done-badge">✓ Concluído</div>
+        <div class="mini-progress"><div class="mini-fill" id="fill4"></div></div>
+        <div class="mini-pct" id="pct4">0%</div>
+        <span class="chevron">›</span>
+      </div>
+    </div>
+    <div class="section-body">
+      <div style="padding:16px 20px 8px; font-size:13px; color:var(--text-muted);">
+        A automação foi construída — agora é hora de garantir que funciona de verdade antes de deixar rodando sozinha.
+      </div>
+
+      <!-- Testes -->
+      <div style="padding:12px 20px 4px; font-size:12px; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.07em; border-top:1px solid var(--border);">Testes de Validação</div>
+      <div class="status-list">
+        <div class="status-item">
+          <div><div class="status-label">🔬 Teste Completo (do início ao fim)</div><div class="status-note">Simule o evento real e verifique se todos os passos funcionam como esperado.</div></div>
+          <div class="status-toggle"><button class="st-btn" onclick="toggleStatus(this,'s4_1','done')">✓ Passou</button><button class="st-btn" onclick="toggleStatus(this,'s4_1','pend')">⏳ Pendente</button></div>
+        </div>
+        <div class="status-item">
+          <div><div class="status-label">⚠️ Teste com dados errados ou imprevistos</div><div class="status-note">O que acontece se chegar um formulário incompleto ou um valor nulo? O workflow não deve quebrar.</div></div>
+          <div class="status-toggle"><button class="st-btn" onclick="toggleStatus(this,'s4_2','done')">✓ Passou</button><button class="st-btn" onclick="toggleStatus(this,'s4_2','pend')">⏳ Pendente</button></div>
+        </div>
+        <div class="status-item">
+          <div><div class="status-label">📊 Teste com volume real</div><div class="status-note">Funciona bem se chegar 50 pedidos de uma vez? Verifique os limites do seu plano N8N.</div></div>
+          <div class="status-toggle"><button class="st-btn" onclick="toggleStatus(this,'s4_3','done')">✓ Passou</button><button class="st-btn" onclick="toggleStatus(this,'s4_3','pend')">⏳ Pendente</button></div>
+        </div>
+        <div class="status-item">
+          <div><div class="status-label">👥 Validação com a equipe</div><div class="status-note">As pessoas que faziam esse processo manual aprovam o resultado? Elas entendem o que mudou?</div></div>
+          <div class="status-toggle"><button class="st-btn" onclick="toggleStatus(this,'s4_4','done')">✓ Passou</button><button class="st-btn" onclick="toggleStatus(this,'s4_4','pend')">⏳ Pendente</button></div>
+        </div>
+      </div>
+
+      <!-- Implantação -->
+      <div style="padding:12px 20px 4px; font-size:12px; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.07em; border-top:1px solid var(--border);">Ativação e Manutenção</div>
+      <div class="check-list">
+        <div class="check-item" onclick="toggleCheck(this,'c4_5')">
+          <div class="cbox"><span class="cbox-tick">✓</span></div>
+          <div class="check-content">
+            <div class="check-title">▶️ Workflow ativado em produção</div>
+            <div class="check-desc">O botão de ativar está ligado no N8N? O workflow está rodando de verdade?</div>
+          </div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this,'c4_6')">
+          <div class="cbox"><span class="cbox-tick">✓</span></div>
+          <div class="check-content">
+            <div class="check-title">👀 Monitoramento das primeiras execuções</div>
+            <div class="check-desc">Acompanhe as primeiras vezes que a automação rodar. Verifique o histórico no N8N.</div>
+          </div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this,'c4_7')">
+          <div class="cbox"><span class="cbox-tick">✓</span></div>
+          <div class="check-content">
+            <div class="check-title">📄 Documentação básica criada</div>
+            <div class="check-desc">Escreva um parágrafo explicando o que essa automação faz. Guarde junto com as credenciais usadas.</div>
+          </div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this,'c4_8')">
+          <div class="cbox"><span class="cbox-tick">✓</span></div>
+          <div class="check-content">
+            <div class="check-title">🗓️ Revisão periódica agendada</div>
+            <div class="check-desc">Coloque no calendário para revisar essa automação daqui 30 dias. Ela ainda faz sentido? Está funcionando?</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       FASE 5 — EXEMPLOS PRONTOS
+  ════════════════════════════════════════ -->
+  <div class="section" id="sec5">
+    <div class="section-header" onclick="toggleSection('sec5')">
+      <div class="section-icon">💡</div>
+      <div class="section-title-wrap">
+        <div class="section-phase">Bônus</div>
+        <div class="section-title">Exemplos de Automações Prontas para Implementar</div>
+      </div>
+      <div class="section-meta">
+        <span class="chevron">›</span>
+      </div>
+    </div>
+    <div class="section-body">
+      <div style="padding:16px 20px 8px; font-size:13px; color:var(--text-muted);">
+        Use esses exemplos como inspiração ou como ponto de partida para suas próprias automações no N8N.
+      </div>
+      <div class="cards-wrap">
+
+        <div>
+          <div class="card-cat-label">🎧 Atendimento ao Cliente</div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div class="card">
+              <div class="card-header">
+                <span class="card-tag tag-atendimento">Atendimento</span>
+                <span class="card-title">Recebimento de Leads e Formulários</span>
+              </div>
+              <div class="card-body">
+                <div><div class="card-col-label">Gatilho</div><div class="card-col-val">Cliente preenche formulário (Typeform, Google Forms, site)</div></div>
+                <div><div class="card-col-label">O que você ganha</div><div class="card-col-val">Nunca mais perder um lead. Tudo vai direto para o lugar certo.</div></div>
+              </div>
+              <div class="card-actions">
+                <div class="card-col-label" style="margin-bottom:8px">Ações automáticas</div>
+                <ul class="action-steps">
+                  <li><span class="step-num">1</span>Criar contato no CRM automaticamente</li>
+                  <li><span class="step-num">2</span>Avisar a equipe de vendas no WhatsApp ou Slack</li>
+                  <li><span class="step-num">3</span>Enviar e-mail de boas-vindas ao cliente</li>
+                </ul>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <span class="card-tag tag-atendimento">Atendimento</span>
+                <span class="card-title">Respostas Automáticas a Dúvidas Repetidas</span>
+              </div>
+              <div class="card-body">
+                <div><div class="card-col-label">Gatilho</div><div class="card-col-val">Novo ticket, e-mail ou mensagem de cliente</div></div>
+                <div><div class="card-col-label">O que você ganha</div><div class="card-col-val">Sua equipe para de responder as mesmas 10 perguntas todo dia.</div></div>
+              </div>
+              <div class="card-actions">
+                <div class="card-col-label" style="margin-bottom:8px">Ações automáticas</div>
+                <ul class="action-steps">
+                  <li><span class="step-num">1</span>Identificar o assunto da mensagem</li>
+                  <li><span class="step-num">2</span>Se for pergunta frequente → responder automaticamente</li>
+                  <li><span class="step-num">3</span>Se for algo complexo → escalar para um atendente</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card-cat-label">💼 Vendas e Marketing</div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div class="card">
+              <div class="card-header">
+                <span class="card-tag tag-vendas">Vendas</span>
+                <span class="card-title">Integração de Loja Virtual com Estoque</span>
+              </div>
+              <div class="card-body">
+                <div><div class="card-col-label">Gatilho</div><div class="card-col-val">Novo pedido na loja (Shopify, WooCommerce, Nuvemshop)</div></div>
+                <div><div class="card-col-label">O que você ganha</div><div class="card-col-val">Fim do estoque desatualizado e erros de separação.</div></div>
+              </div>
+              <div class="card-actions">
+                <div class="card-col-label" style="margin-bottom:8px">Ações automáticas</div>
+                <ul class="action-steps">
+                  <li><span class="step-num">1</span>Registrar venda no sistema financeiro</li>
+                  <li><span class="step-num">2</span>Baixar o item do estoque automaticamente</li>
+                  <li><span class="step-num">3</span>Gerar etiqueta de envio (se aplicável)</li>
+                </ul>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <span class="card-tag tag-vendas">Marketing</span>
+                <span class="card-title">Publicação Automática nas Redes Sociais</span>
+              </div>
+              <div class="card-body">
+                <div><div class="card-col-label">Gatilho</div><div class="card-col-val">Novo artigo publicado no blog ou novo produto cadastrado</div></div>
+                <div><div class="card-col-label">O que você ganha</div><div class="card-col-val">Postar em 3 redes sociais sem abrir nenhuma delas.</div></div>
+              </div>
+              <div class="card-actions">
+                <div class="card-col-label" style="margin-bottom:8px">Ações automáticas</div>
+                <ul class="action-steps">
+                  <li><span class="step-num">1</span>Criar post no Instagram, Facebook e LinkedIn</li>
+                  <li><span class="step-num">2</span>Adicionar link à newsletter (Mailchimp/outros)</li>
+                  <li><span class="step-num">3</span>Notificar a equipe internamente</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card-cat-label">💰 Financeiro e Administrativo</div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div class="card">
+              <div class="card-header">
+                <span class="card-tag tag-financeiro">Financeiro</span>
+                <span class="card-title">Lançamento Automático de Despesas</span>
+              </div>
+              <div class="card-body">
+                <div><div class="card-col-label">Gatilho</div><div class="card-col-val">Novo recibo salvo em pasta (Google Drive / Dropbox)</div></div>
+                <div><div class="card-col-label">O que você ganha</div><div class="card-col-val">Chega de digitar recibo um por um no sistema.</div></div>
+              </div>
+              <div class="card-actions">
+                <div class="card-col-label" style="margin-bottom:8px">Ações automáticas</div>
+                <ul class="action-steps">
+                  <li><span class="step-num">1</span>Extrair dados do recibo automaticamente (valor, data, fornecedor)</li>
+                  <li><span class="step-num">2</span>Criar lançamento no sistema financeiro</li>
+                  <li><span class="step-num">3</span>Mover o arquivo para a pasta "Processados"</li>
+                </ul>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <span class="card-tag tag-financeiro">Financeiro</span>
+                <span class="card-title">Lembretes Automáticos de Cobrança</span>
+              </div>
+              <div class="card-body">
+                <div><div class="card-col-label">Gatilho</div><div class="card-col-val">Data de vencimento se aproximando (verificado diariamente)</div></div>
+                <div><div class="card-col-label">O que você ganha</div><div class="card-col-val">Receba os pagamentos em dia sem precisar ligar para ninguém.</div></div>
+              </div>
+              <div class="card-actions">
+                <div class="card-col-label" style="margin-bottom:8px">Ações automáticas</div>
+                <ul class="action-steps">
+                  <li><span class="step-num">1</span>Verificar se o pagamento foi realizado</li>
+                  <li><span class="step-num">2</span>Se não foi → enviar lembrete por e-mail</li>
+                  <li><span class="step-num">3</span>Registrar o contato no histórico do cliente</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="actions-bar">
+    <button class="btn-action btn-print" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
+    <button class="btn-action btn-reset" onclick="resetAll()">🔄 Limpar tudo e recomeçar</button>
+  </div>
+
+</main>
+
+<!-- CELEBRATION MODAL -->
+<div id="celebration">
+  <div class="celebrate-box">
+    <div class="celebrate-emoji">🎉</div>
+    <div class="celebrate-title">Parabéns! Você concluiu o Checklist!</div>
+    <p class="celebrate-text">Você mapeou seus processos, planejou, construiu e testou sua automação. Agora é só deixar o N8N trabalhar por você — enquanto você foca no que realmente importa na sua empresa.</p>
+    <button class="btn-close" onclick="closeModal()">Continuar →</button>
+  </div>
+</div>
+
+<footer>
+  <p>© Checklist de Automação com N8N — Produto Exclusivo do Curso</p>
+  <p style="margin-top:6px">Seu progresso é salvo automaticamente neste navegador.</p>
+</footer>
+
+<script>
+// ── STATE ──
+const STORE_KEY = 'n8n_checklist_v1';
+
+function loadState() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { return {}; }
+}
+function saveState(state) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(state));
+}
+
+let state = loadState();
+
+// ── TOGGLE SECTION ──
+function toggleSection(id) {
+  const sec = document.getElementById(id);
+  sec.classList.toggle('open');
+}
+
+// ── CHECKBOX ──
+function toggleCheck(el, key) {
+  el.classList.toggle('checked');
+  state[key] = el.classList.contains('checked');
+  saveState(state);
+  updateProgress();
+}
+
+// ── STATUS TOGGLE (done/pending) ──
+function toggleStatus(btn, key, val) {
+  const wrap = btn.parentElement;
+  const [doneBtn, pendBtn] = wrap.querySelectorAll('.st-btn');
+  doneBtn.classList.remove('active-done');
+  pendBtn.classList.remove('active-pend');
+  if (val === 'done') doneBtn.classList.add('active-done');
+  else pendBtn.classList.add('active-pend');
+  state[key] = val;
+  saveState(state);
+  updateProgress();
+}
+
+// ── INPUTS ──
+function saveInputs() {
+  for (let i = 0; i < 6; i++) {
+    const ta = document.getElementById('dept' + i);
+    const sel = document.getElementById('prio' + i);
+    if (ta) state['dept_' + i] = ta.value;
+    if (sel) state['prio_' + i] = sel.value;
+  }
+  saveState(state);
+}
+
+// ── PROGRESS ──
+function updateProgress() {
+  const checkKeys = {
+    sec1: ['c1_1','c1_2','c1_3','c1_4','c1_5','c1_6'],
+    sec2: ['s2_1','s2_2','s2_3','s2_4','s2_5','s2_6'],
+    sec3: ['c3_1','c3_2','c3_3','c3_4','c3_5','c3_6','c3_7'],
+    sec4: ['s4_1','s4_2','s4_3','s4_4','c4_5','c4_6','c4_7','c4_8'],
+  };
+
+  let total = 0, done = 0;
+  let allSectionsDone = true;
+
+  Object.keys(checkKeys).forEach(secId => {
+    const keys = checkKeys[secId];
+    let secDone = 0;
+    keys.forEach(k => {
+      total++;
+      if (state[k] === true || state[k] === 'done') { done++; secDone++; }
+    });
+    const pct = Math.round((secDone / keys.length) * 100);
+    const fillEl = document.getElementById('fill' + secId.replace('sec',''));
+    const pctEl = document.getElementById('pct' + secId.replace('sec',''));
+    if (fillEl) fillEl.style.width = pct + '%';
+    if (pctEl) pctEl.textContent = pct + '%';
+    const sec = document.getElementById(secId);
+    if (sec) {
+      if (secDone === keys.length) sec.classList.add('all-done');
+      else { sec.classList.remove('all-done'); allSectionsDone = false; }
+    }
+  });
+
+  const globalPct = Math.round((done / total) * 100);
+  document.getElementById('globalFill').style.width = globalPct + '%';
+  document.getElementById('globalPct').textContent = globalPct + '%';
+
+  if (globalPct === 100 && !state._celebrated) {
+    state._celebrated = true;
+    saveState(state);
+    setTimeout(() => document.getElementById('celebration').classList.add('show'), 600);
+  }
+}
+
+function closeModal() {
+  document.getElementById('celebration').classList.remove('show');
+}
+
+// ── RESET ──
+function resetAll() {
+  if (!confirm('Tem certeza? Isso vai apagar todo o seu progresso.')) return;
+  localStorage.removeItem(STORE_KEY);
+  state = {};
+  location.reload();
+}
+
+// ── RESTORE STATE ──
+function restoreState() {
+  // Checkboxes
+  document.querySelectorAll('.check-item').forEach(el => {
+    const fn = el.getAttribute('onclick');
+    const match = fn && fn.match(/toggleCheck\(this,'([^']+)'\)/);
+    if (match && state[match[1]]) el.classList.add('checked');
+  });
+
+  // Status toggles
+  document.querySelectorAll('.status-toggle').forEach(wrap => {
+    const [doneBtn, pendBtn] = wrap.querySelectorAll('.st-btn');
+    const fn = doneBtn.getAttribute('onclick');
+    const match = fn && fn.match(/toggleStatus\(this,'([^']+)','done'\)/);
+    if (match) {
+      const v = state[match[1]];
+      if (v === 'done') doneBtn.classList.add('active-done');
+      if (v === 'pend') pendBtn.classList.add('active-pend');
+    }
+  });
+
+  // Text inputs
+  for (let i = 0; i < 6; i++) {
+    const ta = document.getElementById('dept' + i);
+    const sel = document.getElementById('prio' + i);
+    if (ta && state['dept_' + i]) ta.value = state['dept_' + i];
+    if (sel && state['prio_' + i]) sel.value = state['prio_' + i];
+  }
+
+  updateProgress();
+}
+
+// ── INIT ──
+restoreState();
+</script>
+</body>
+</html>
